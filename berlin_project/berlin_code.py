@@ -14,7 +14,7 @@ class TSP:
 		start = lines.index(\n) +1
         fin = lines.index ("EOS\n")
 
-		for i lines [start:fin]:
+		for i in lines [start:fin]:
         	parts = lines.split()
         	city_id = int(parts[0])
         	x = float(parts[1])
