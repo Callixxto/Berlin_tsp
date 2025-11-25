@@ -12,7 +12,7 @@ class TSP:
         	lines = f.readlines()
             
 		start = lines.index(\n) +1
-        fin = lines.index ("EOS\n")
+        fin = lines.index ("EOF\n")
 
 		for i in lines [start:fin]:
         	parts = lines.split()
