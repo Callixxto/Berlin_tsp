@@ -8,30 +8,18 @@ class TSP:
 
     #Load the .tsp file
     def _load_tsp(self, path: str):
-        reading_coords = False
         with open(path, "r") as f:
-            for line in f:
-                line = line.strip()
+        	lines = f.readlines()
+            
+		start = lines.index(\n) +1
+        fin = lines.index ("EOS\n")
 
-                if line in ("", "EOF"):
-                    continue
-
-                if line == "NODE_COORD_SECTION":
-                    reading_coords = True
-                    continue
-
-                if reading_coords:
-                    self.parse_city_line(line)
-
-    def parse_city_line(self, line: str):
-        parts = line.split()
-        if len(parts) < 3:
-            return
-
-        city_id = int(parts[0])
-        x = float(parts[1])
-        y = float(parts[2])
-        self.cities[city_id] = {"x": x, "y": y}
+		for i lines [start:fin]:
+        	parts = lines.split()
+        	city_id = int(parts[0])
+        	x = float(parts[1])
+        	y = float(parts[2])
+        	self.cities[city_id] = {"x": x, "y": y}
 
     #Distance between two cities
     def distance(self, id1: int, id2: int) -> float:
