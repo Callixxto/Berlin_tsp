@@ -6,7 +6,7 @@ class TSP:
         self.cities = {}      #City_id -> {"x": float, "y": float}
         self._load_tsp(path)
 
-    # ---------- 1. Load .tsp file ----------
+    #Load the .tsp file
     def _load_tsp(self, path: str):
         reading_coords = False
         with open(path, "r") as f:
@@ -53,12 +53,12 @@ class TSP:
         return solution
 
     def fitness(self, solution: dict) -> float:
-        # solution: position -> city_id
+        #Solution: position -> city_id
         order = [solution[i] for i in sorted(solution.keys())]
         total = 0.0
         for i in range(len(order) - 1):
             total += self.distance(order[i], order[i + 1])
-        # close the tour (return to start)
+        #Return to start
         total += self.distance(order[-1], order[0])
         return total
 
@@ -76,7 +76,7 @@ class TSP:
         unvisited.remove(current)
 
         while unvisited:
-            # choose closest city
+            #Choose closest city
             next_city = min(unvisited, key=lambda cid: self.distance(current, cid))
             order_ids.append(next_city)
             unvisited.remove(next_city)
@@ -169,12 +169,12 @@ if __name__ == "__main__":
         s = tsp.fitness(sol)
         random_results.append((i + 1, s, sol))
 
-    #Compare random scores with greedy best
+    #Compare random scores with best greedy
     random_scores = [s for (_, s, _) in random_results]
 
-    print("\n----- Comparison -----")
+    print("\n ~Comparison~")
     print("Greedy best score:", best_score)
     print("Best random score:", min(random_scores))
     print("Worst random score:", max(random_scores))
     print("Average random score:", sum(random_scores) / len(random_scores))
-   #print(random_results)
+    #print(random_results)
