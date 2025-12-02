@@ -315,10 +315,10 @@ if __name__ == "__main__":
 
     #Task 18
 
-    POP_SIZE = 200  # you can tune this
-    EPOCHS = 50  # number of epochs/generations
+    POP_SIZE = 200
+    EPOCHS = 700
     PC = 0.9  # crossover probability
-    PM = 0.01  # mutation probability
+    PM = 0.3  # mutation probability
 
     # Initial population for GA (epoch 0)
     ga_pop = tsp.initial_population(size=POP_SIZE, greedy_ratio=0.0)
