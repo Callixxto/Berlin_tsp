@@ -184,7 +184,7 @@ class TSP:
             p1 = self.tournament_selection(population, k=tournament_k)
             p2 = self.tournament_selection(population, k=tournament_k)
 
-            #crossover with probability px
+            #crossover with probability pc
             if random.random() < pc:
                 child = self.crossover_OC(p1, p2)
             else:
