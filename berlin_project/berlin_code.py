@@ -160,7 +160,6 @@ class TSP:
 
     def mutate_swap(self, individual, pm=0.05):                    #Task 16
         #Swap mutation. For every city, with probability p_mut, swap it with another random city.
-
         mutated = individual[:]  #Copy so as not to overwrite
         size = len(mutated)
 
@@ -182,26 +181,26 @@ class TSP:
         pop_size = len(population)
 
         while len(new_population) < pop_size:
-            # 1) select parents
+            #select parents
             p1 = self.tournament_selection(population, k=tournament_k)
             p2 = self.tournament_selection(population, k=tournament_k)
 
-            # 2) crossover with probability px
+            #crossover with probability px
             if random.random() < pc:
                 child = self.crossover_OC(p1, p2)
             else:
                 child = p1[:]  # copy parent1 (no crossover)
 
-            # 3) mutation (swap) with probability pm per city
+            #mutation (swap) with probability pm per city
             child = self.mutate_swap(child, pm)
 
-            # 4) evaluate (fitness)
+            #evaluate (fitness)
             score = self.fitness(child)
 
-            # 5) add to new population
+            #add to new population
             new_population.append(child)
 
-            # 6) track best individual in this epoch
+            #track best individual in this epoch
             if score < best_score:
                 best_score = score
                 best_individual = child
