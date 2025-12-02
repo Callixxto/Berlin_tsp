@@ -113,8 +113,7 @@ class TSP:
         else:
             median = (sorted_scores[mid - 1] + sorted_scores[mid]) / 2
 
-        # Print results
-        print("\n--- Population Info ---")
+        print("\~Population Info~")
         print("Population size:", size)
         print("Best score:     ", best)
         print("Median score:   ", median)
@@ -159,7 +158,7 @@ class TSP:
         return child
 
     def mutate_swap(self, individual, pm=0.05):                    #Task 16
-        #Swap mutation. For every city, with probability p_mut, swap it with another random city.
+        #Swap mutation. For every city, with probability pm swap with another random city.
         mutated = individual[:]  #Copy so as not to overwrite
         size = len(mutated)
 
@@ -271,7 +270,7 @@ if __name__ == "__main__":
     # Comparison random vs greedy
     random_scores = [s for (_, s, _) in random_results]
 
-    print("\n----- Random vs Greedy Comparison -----")
+    print("\nRandom vs Greedy Comparison")
     print("Greedy best score:", best_score)
     print("Best random score:", min(random_scores))
     print("Worst random score:", max(random_scores))
