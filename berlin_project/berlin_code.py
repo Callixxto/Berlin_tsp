@@ -337,7 +337,7 @@ if __name__ == "__main__":
             ga_pop, pc=PC, pm=PM, tournament_k=4
         )
 
-        print(f"\n=== GA Epoch {epoch_idx} ===")
+        print(f"\n~GA Epoch {epoch_idx}~")
         tsp.population_info(ga_pop)
 
         # store just this epoch's best (can go up/down)
