@@ -1,28 +1,26 @@
 import math
 import random
 import matplotlib.pyplot as plt
-
+import statistics as stats
 
 class TSP:
     def __init__(self):
-        self.cities = {}  # City_id -> {"x": float, "y": float}
+        self.cities = {}
         self.load_tsp()
 
-    #Load the .tsp file
-    def load_tsp(self):                                             #Task 1
-        with open("berlin52.tsp", "r") as f:
+    def load_tsp(self):
+        with open("kroA100.tsp", "r") as f:
             lines = f.readlines()
             start = lines.index("NODE_COORD_SECTION\n") + 1
             fin = lines.index("EOF\n")
 
-        for i in lines[start:fin]:
-            parts = i.split()
+        for line in lines[start:fin]:
+            parts = line.split()
             city_id = int(parts[0])
             x = float(parts[1])
             y = float(parts[2])
             self.cities[city_id] = {"x": x, "y": y}
 
-    #Distance between two cities
     def distance(self, id1: int, id2: int) -> float:
         c1 = self.cities[id1]
         c2 = self.cities[id2]
@@ -30,24 +28,24 @@ class TSP:
         dy = c1["y"] - c2["y"]
         return math.sqrt(dx * dx + dy * dy)
 
+    #random solution
     def random_solution(self):
         city_ids = list(self.cities.keys())
         random.shuffle(city_ids)
         return city_ids
 
-    def fitness(self, solution):                                #Task 5
+    #Task 5
+    def fitness(self, solution):
         total = 0.0
         for i in range(len(solution) - 1):
             total += self.distance(solution[i], solution[i + 1])
-
+        # return to start
         total += self.distance(solution[-1], solution[0])
         return total
 
-    def info(self, solution):                                   #Task 6
-        #Route
+    #Task 6
+    def info(self, solution):
         print("Route:", " ".join(str(city) for city in solution))
-
-        #Compute score
         score = self.fitness(solution)
         print("Score:", score)
 
@@ -60,52 +58,39 @@ class TSP:
         while unvisited:
             closest_city = None
             closest_distance = float("inf")
-
-            # manually search for nearest neighbour
             for cid in unvisited:
                 d = self.distance(current, cid)
                 if d < closest_distance:
                     closest_distance = d
                     closest_city = cid
-
             tour.append(closest_city)
             unvisited.remove(closest_city)
             current = closest_city
-
         return tour
 
-    def initial_population(self, size, greedy_ratio=0.3):               #Task 12
+    #Task 12
+    def initial_population(self, size, greedy_ratio=0.3):
         population = []
-
-        #How many greedy and random
         num_greedy = int(size * greedy_ratio)
         num_random = size - num_greedy
-
-        #Add greedy individuals by simply running greedy from random starting cities
         city_ids = list(self.cities.keys())
 
-        for i in range(num_greedy):
+        # greedy-based individuals
+        for _ in range(num_greedy):
             start = random.choice(city_ids)
             tour = self.greedy(start)
             population.append(tour)
-
-        #Add random individuals
-        for i in range(num_random):
+        # random individuals
+        for _ in range(num_random):
             population.append(self.random_solution())
-
         return population
 
-
-    def population_info(self, population):                          #Task 13
-        # Compute all fitness values
+    #Task 13
+    def population_info(self, population):
         scores = [self.fitness(sol) for sol in population]
-
-        # Basic stats
         size = len(population)
         best = min(scores)
         worst = max(scores)
-
-        #Middle element for median for odd and even examples
         sorted_scores = sorted(scores)
         mid = size // 2
         if size % 2 == 1:
@@ -113,105 +98,130 @@ class TSP:
         else:
             median = (sorted_scores[mid - 1] + sorted_scores[mid]) / 2
 
-        print("\~Population Info~")
+        print("\nPopulation Info")
         print("Population size:", size)
         print("Best score:     ", best)
         print("Median score:   ", median)
         print("Worst score:    ", worst)
 
-
-    def tournament_selection(self, population, k=3):                   #Task 14
+    # Task 14
+    def tournament_selection(self, population, k=3):
         contestants = random.sample(population, k)
         best = None
         best_score = float("inf")
-
         for sol in contestants:
             score = self.fitness(sol)
             if score < best_score:
                 best_score = score
                 best = sol
-
         return best
 
-    def crossover_OC(self, parent1, parent2):                          #Task 15
+    #Task 15
+    def crossover_OC(self, parent1, parent2):
         size = len(parent1)
-
-        #Picking two cut points
         a = random.randint(0, size - 2)
         b = random.randint(a + 1, size - 1)
-
-        #Empty child
         child = [None] * size
 
-        #Copy part of parent 1
         for i in range(a, b + 1):
             child[i] = parent1[i]
 
-        #Filling the rest with parent 2
         pos = 0
         for i in range(size):
             if parent2[i] not in child:
-                while child[pos] is not None:                   # find next empty spot
+                while child[pos] is not None:
                     pos += 1
                 child[pos] = parent2[i]
 
         return child
 
-    def mutate_swap(self, individual, pm=0.05):                    #Task 16
-        #Swap mutation. For every city, with probability pm swap with another random city.
-        mutated = individual[:]  #Copy so as not to overwrite
-        size = len(mutated)
-
-        for i in range(size):
-            if random.random() < pm:
-                # choose a position to swap with
-                j = random.randint(0, size - 1)
-                # swap the cities
-                mutated[i], mutated[j] = mutated[j], mutated[i]
-
+    #Task 16
+    def mutate_inversion(self, individual, pm=0.05):
+        mutated = individual[:]
+        if random.random() >= pm:
+            return mutated  # no mutation
+        a, b = sorted(random.sample(range(len(mutated)), 2))
+        mutated[a:b + 1] = reversed(mutated[a:b + 1])
         return mutated
 
-                          #prop of crossover / prop of mutation
+    #Task 17
     def epoch(self, population, pc=0.9, pm=0.05, tournament_k=3):
-        new_population = []
-        best_individual = None
-        best_score = float("inf")
-
         pop_size = len(population)
 
+        # find elite
+        best_parent = None
+        best_parent_score = float("inf")
+        for ind in population:
+            s = self.fitness(ind)
+            if s < best_parent_score:
+                best_parent_score = s
+                best_parent = ind
+
+        new_population = [best_parent[:]]  # start with elite
+        best_individual = best_parent[:]
+        best_score = best_parent_score
+
         while len(new_population) < pop_size:
-            #select parents
             p1 = self.tournament_selection(population, k=tournament_k)
             p2 = self.tournament_selection(population, k=tournament_k)
 
-            #crossover with probability pc
             if random.random() < pc:
                 child = self.crossover_OC(p1, p2)
             else:
-                child = p1[:]  # copy parent1 (no crossover)
+                child = p1[:]
 
-            #mutation (swap) with probability pm per city
-            child = self.mutate_swap(child, pm)
-
-            #evaluate (fitness)
+            child = self.mutate_inversion(child, pm)
             score = self.fitness(child)
-
-            #add to new population
             new_population.append(child)
 
-            #track best individual in this epoch
             if score < best_score:
                 best_score = score
                 best_individual = child
 
         return new_population, best_individual, best_score
 
-def run_ga_once(tsp, pop_size, epochs, pc, pm, tournament_k, greedy_ratio=0.0):
-    # Create initial population
+    def plot_tour(self, tour, title="Tour"):
+        xs = [self.cities[c]["x"] for c in tour]
+        ys = [self.cities[c]["y"] for c in tour]
+        # close loop
+        xs.append(self.cities[tour[0]]["x"])
+        ys.append(self.cities[tour[0]]["y"])
+
+        plt.figure(figsize=(6, 6))
+        plt.plot(xs, ys, marker="o")
+
+        for cid in tour:
+            x = self.cities[cid]["x"]
+            y = self.cities[cid]["y"]
+            plt.text(x, y, str(cid), fontsize=8, ha="right", va="bottom")
+        plt.title(title)
+        plt.xlabel("X")
+        plt.ylabel("Y")
+        plt.tight_layout()
+        plt.show()
+
+#Task 20: run GA once with given params
+def run_ga_once(tsp, pop_size, epochs, pc, pm, tournament_k,
+                greedy_ratio=0.0, record_history=False, seed=None):
+
+    if seed is not None:
+        random.seed(seed)
+
+    # initial population
     population = tsp.initial_population(pop_size, greedy_ratio=greedy_ratio)
 
     best_score_overall = float("inf")
+    history = []
 
+    # best in initial population (epoch 0)
+    for ind in population:
+        s = tsp.fitness(ind)
+        if s < best_score_overall:
+            best_score_overall = s
+    if record_history:
+        history.append(best_score_overall)
+
+    # GA epochs
     for _ in range(epochs):
         population, best_ind, best_score = tsp.epoch(
             population,
@@ -221,219 +231,310 @@ def run_ga_once(tsp, pop_size, epochs, pc, pm, tournament_k, greedy_ratio=0.0):
         )
         if best_score < best_score_overall:
             best_score_overall = best_score
+        if record_history:
+            history.append(best_score_overall)
 
-    return best_score_overall  # return final best score
+    if record_history:
+        return best_score_overall, history
+    else:
+        return best_score_overall
 
 
 if __name__ == "__main__":
-    tsp = TSP()  #From load_tsp()
+    tsp = TSP()
 
-    #Run greedy for every possible starting city and print info() for each. Find best start and  save its score as reference.
+    #Task 9 (greedy baseline)
     best_start = None
-    best_score = None
-    best_solution = None
-    greedy_scores = []  # list of (start_id, score)
+    best_greedy_score = None
+    best_greedy_route = None
+    greedy_scores = []
 
     for start_id in sorted(tsp.cities.keys()):
         print(f"\nGreedy starting from city {start_id}:")
-        solution = tsp.greedy(start_id)
-        tsp.info(solution)  # prints route and its score
+        route = tsp.greedy(start_id)
+        tsp.info(route)
 
-        score = tsp.fitness(solution)
+        score = tsp.fitness(route)
         greedy_scores.append((start_id, score))
 
-        if best_score is None or score < best_score:
-            best_score = score
+        if best_greedy_score is None or score < best_greedy_score:
+            best_greedy_score = score
             best_start = start_id
-            best_solution = solution
+            best_greedy_route = route
 
     print("\nGreedy summary")
-    all_greedy_scores = [s for (_, s) in greedy_scores]
-    same_scores = (len(set(all_greedy_scores)) == 1)
-    print("All greedy scores the same?:", same_scores)
     print("Best starting city:", best_start)
-    print("Best greedy score (reference):", best_score)
-    print("Best greedy route:",
-          " ".join(str(city) for city in best_solution))
+    print("Best greedy score (reference):", best_greedy_score)
 
-    random_results = []  # list of (index, score, solution)
-
-    #Gen. 100 results
+    #Task 10
+    random_results = []
     for i in range(100):
         print(f"\nRandom solution {i + 1}:")
         sol = tsp.random_solution()
-        tsp.info(sol)  # prints route + score
-
+        tsp.info(sol)
         s = tsp.fitness(sol)
         random_results.append((i + 1, s, sol))
 
-    # Comparison random vs greedy
     random_scores = [s for (_, s, _) in random_results]
-
     print("\nRandom vs Greedy Comparison")
-    print("Greedy best score:", best_score)
+    print("Greedy best score:", best_greedy_score)
     print("Best random score:", min(random_scores))
     print("Worst random score:", max(random_scores))
     print("Average random score:", sum(random_scores) / len(random_scores))
 
-    #Task 13
-    population = tsp.initial_population(1023)
-    tsp.population_info(population)
+    #Tasks 13–17
+    demo_pop = tsp.initial_population(size=100)
+    tsp.population_info(demo_pop)
 
-    #Task 14
-    parent1 = tsp.tournament_selection(population, k=3)
-    parent2 = tsp.tournament_selection(population, k=3)
-    #Parent info
+    parent1 = tsp.tournament_selection(demo_pop, k=3)
+    parent2 = tsp.tournament_selection(demo_pop, k=3)
     print("\nParent 1:")
     tsp.info(parent1)
     print("\nParent 2:")
     tsp.info(parent2)
 
-    #Task 15
     child = tsp.crossover_OC(parent1, parent2)
     print("\nChild from OC crossover:")
     tsp.info(child)
 
-    #Task 16
-    mutated_child = tsp.mutate_swap(child, pm=0.1)
+    mutated_child = tsp.mutate_inversion(child, pm=0.1)
     print("\nMutated Child:")
     tsp.info(mutated_child)
 
-    #Task 17
-    # create initial population (epoch 0)
-    pop0 = tsp.initial_population(size=1023)
-    print("Epoch 0:")
+    pop0 = tsp.initial_population(size=100)
+    print("\nEpoch 0 (demo):")
     tsp.population_info(pop0)
-
-    # create new epoch (epoch 1)
-    pop1, best_ind, best_score = tsp.epoch(pop0, pc=0.9, pm=0.05)
-
-    print("\nEpoch 1:")
+    pop1, best_ind_demo, best_score_demo = tsp.epoch(pop0, pc=0.9, pm=0.05)
+    print("\nEpoch 1 (demo):")
     tsp.population_info(pop1)
-    print("\nBest individual in epoch 1:")
-    tsp.info(best_ind)
+    print("\nBest individual in demo epoch 1:")
+    tsp.info(best_ind_demo)
 
     #Task 18
+    GA_POP_SIZE     = 400
+    GA_EPOCHS       = 900
+    GA_PC           = 0.9
+    GA_PM           = 0.1
+    GA_TOURNAMENT_K = 10
 
-    POP_SIZE = 200
-    EPOCHS = 700
-    PC = 0.9  # crossover probability
-    PM = 0.3  # mutation probability
-
-    # Initial population for GA (epoch 0)
-    ga_pop = tsp.initial_population(size=POP_SIZE, greedy_ratio=0.0)
-    print("\n=== GA Epoch 0 ===")
+    ga_pop = tsp.initial_population(size=GA_POP_SIZE, greedy_ratio=0.0)
+    print("\nGA Epoch 0")
     tsp.population_info(ga_pop)
 
     best_overall_ind = None
     best_overall_score = float("inf")
     best_scores_per_epoch = []
 
-    # global best starts as best in initial population
-    global_best = min(tsp.fitness(sol) for sol in ga_pop)
+    # best-so-far in initial population (epoch 0)
+    for sol in ga_pop:
+        s = tsp.fitness(sol)
+        if s < best_overall_score:
+            best_overall_score = s
+            best_overall_ind = sol
+    best_scores_per_epoch.append(best_overall_score)
 
-    for epoch_idx in range(1, EPOCHS + 1):
+    # GA loop
+    for epoch_idx in range(1, GA_EPOCHS + 1):
         ga_pop, best_ind_epoch, best_score_epoch = tsp.epoch(
-            ga_pop, pc=PC, pm=PM, tournament_k=4
+            ga_pop, pc=GA_PC, pm=GA_PM, tournament_k=GA_TOURNAMENT_K
         )
 
-        print(f"\n~GA Epoch {epoch_idx}~")
+        print(f"\nGA Epoch {epoch_idx}")
         tsp.population_info(ga_pop)
 
-        # store just this epoch's best (can go up/down)
-        best_scores_per_epoch.append(best_score_epoch)
-
+        # update GLOBAL best (best so far across ALL epochs)
         if best_score_epoch < best_overall_score:
             best_overall_score = best_score_epoch
             best_overall_ind = best_ind_epoch
 
-    # Recompute greedy best (for clean comparison, independent of earlier vars)
-    greedy_best_score = None
-    greedy_best_route = None
-    for start_id in sorted(tsp.cities.keys()):
-        sol = tsp.greedy(start_id)
-        score = tsp.fitness(sol)
-        if greedy_best_score is None or score < greedy_best_score:
-            greedy_best_score = score
-            greedy_best_route = sol
+        # for the plot: store BEST SO FAR (monotone decreasing)
+        best_scores_per_epoch.append(best_overall_score)
 
-    # Compare GA vs greedy (and vs random, from earlier if you want)
     print("\nFINAL GA SUMMARY:")
-    print("Best greedy score:", greedy_best_score)
+    print("Best greedy score:", best_greedy_score)
     print("Best GA score:    ", best_overall_score)
 
     print("\nBest GA individual:")
     tsp.info(best_overall_ind)
 
     print("\nBest greedy route (for reference):")
-    tsp.info(greedy_best_route)
+    tsp.info(best_greedy_route)
 
-    #Task 19
+    #Task 19 – (plotting)
+    best_random_score = min(random_scores)  
 
-    # Plot best score as a function of epoch
-    epochs = list(range(len(best_scores_per_epoch)))  # 0..EPOCHS
-    plt.figure()
-    plt.plot(epochs, best_scores_per_epoch, marker="o")
+    epochs = list(range(len(best_scores_per_epoch)))  # 0..GA_EPOCHS
+    plt.figure(figsize=(10, 6))
+    plt.plot(epochs, best_scores_per_epoch, marker="o", markersize=3)
     plt.xlabel("Epoch")
-    plt.ylabel("Best score in population")
+    plt.ylabel("Best score (best so far)")
     plt.title("GA progress over epochs")
 
-    # Optional: show greedy reference as horizontal line
-    plt.axhline(greedy_best_score, color="red", linestyle="--", label="Greedy best")
+    subtitle = (
+        f"Best Greedy: {best_greedy_score:.2f}   |   "
+        f"Best Random: {best_random_score:.2f}   |   "
+        f"Best GA: {best_overall_score:.2f}"
+    )
+    plt.suptitle(subtitle, y=0.96, fontsize=9)
+
+    plt.axhline(best_greedy_score, color="red", linestyle="--", label="Greedy best")
     plt.legend()
+    plt.tight_layout()
     plt.show()
+
+    # Plot tours for visualization
+    tsp.plot_tour(best_greedy_route, title="Best Greedy Tour")
+    tsp.plot_tour(best_overall_ind, title="Best GA Tour")
 
     #Task 20
-    print("\n~PARAMETER COMPARISON~")
+    print("\nPARAMETER COMPARISON")
 
-    TEST_EPOCHS = 40   # how long each GA run is
-    POP = 200          # keep population constant for fairness
+    TEST_EPOCHS = 200
+    POP = 200
+    BASE_SEED = 123
 
-    # Parameter sets to test:
-    mutation_values = [0.001, 0.01, 0.05, 0.1]
-    crossover_values = [0.7, 0.9]
-    tournament_values = [3, 4, 5]
-
-    # Store results
-    results_mut = []
+    mutation_values   = [0.001, 0.01, 0.05, 0.1,0.4]
+    tournament_values = [3, 4, 5, 10]
+    pop_sizes = [50, 100, 200, 400,600]
+    # Mutation
+    plt.figure()
     for pm in mutation_values:
-        score = run_ga_once(tsp, POP, TEST_EPOCHS, pc=0.9, pm=pm, tournament_k=3)
-        results_mut.append(score)
-
-    results_cross = []
-    for pc in crossover_values:
-        score = run_ga_once(tsp, POP, TEST_EPOCHS, pc=pc, pm=0.01, tournament_k=3)
-        results_cross.append(score)
-
-    results_tourn = []
-    for k in tournament_values:
-        score = run_ga_once(tsp, POP, TEST_EPOCHS, pc=0.9, pm=0.01, tournament_k=k)
-        results_tourn.append(score)
-
-    #Mutation comparison
-    plt.figure()
-    plt.plot(mutation_values, results_mut, marker="o")
-    plt.xlabel("Mutation probability")
-    plt.ylabel("Best score after GA")
+        final_score, hist = run_ga_once(
+            tsp, POP, TEST_EPOCHS,
+            pc=0.9, pm=pm, tournament_k=3,
+            greedy_ratio=0.0,
+            record_history=True,
+            seed=BASE_SEED
+        )
+        plt.plot(range(len(hist)), hist, label=f"pm={pm:.3f}")
+    plt.xlabel("Generation")
+    plt.ylabel("Best score (best so far)")
     plt.title("Effect of mutation rate on GA quality")
+    plt.legend()
     plt.grid()
     plt.show()
-
-    #Crossover comparison
+    # Tournament
     plt.figure()
-    plt.plot(crossover_values, results_cross, marker="o")
-    plt.xlabel("Crossover probability")
-    plt.ylabel("Best score after GA")
-    plt.title("Effect of crossover rate on GA quality")
-    plt.grid()
-    plt.show()
-
-    #Tournament size comparison
-    plt.figure()
-    plt.plot(tournament_values, results_tourn, marker="o")
-    plt.xlabel("Tournament size")
-    plt.ylabel("Best score after GA")
+    for k in tournament_values:
+        final_score, hist = run_ga_once(
+            tsp, POP, TEST_EPOCHS,
+            pc=0.9, pm=0.03, tournament_k=k,
+            greedy_ratio=0.0,
+            record_history=True,
+            seed=BASE_SEED
+        )
+        plt.plot(range(len(hist)), hist, label=f"k={k}")
+    plt.xlabel("Generation")
+    plt.ylabel("Best score (best so far)")
     plt.title("Effect of tournament size on GA quality")
+    plt.legend()
+    plt.grid()
+    plt.show()
+    #Population
+    plt.figure()
+    for pop_size in pop_sizes:
+        final_score, hist = run_ga_once(
+            tsp,
+            pop_size,
+            TEST_EPOCHS,
+            pc=0.9,
+            pm=0.03,
+            tournament_k=4,
+            greedy_ratio=0.0,
+            record_history=True,
+            seed=BASE_SEED
+        )
+        plt.plot(range(len(hist)), hist, label=f"POP={pop_size}")
+
+    plt.xlabel("Generation")
+    plt.ylabel("Best score (best so far)")
+    plt.title("Effect of initial population size on GA quality")
+    plt.legend()
     plt.grid()
     plt.show()
 
+    #PART 3
+    #GA with best parameters
+    GA_BEST_POP        = 600     
+    GA_BEST_EPOCHS     = 600     
+    GA_BEST_PC         = 0.9      
+    GA_BEST_PM         = 0.1     
+    GA_BEST_TOURN_K    = 10     
+    GA_BEST_GREEDY_RATIO = 0.3
+
+    ga_scores = []
+
+    for run in range(1, 11):
+        best_score = run_ga_once(
+            tsp,
+            pop_size=GA_BEST_POP,
+            epochs=GA_BEST_EPOCHS,
+            pc=GA_BEST_PC,
+            pm=GA_BEST_PM,
+            tournament_k=GA_BEST_TOURN_K,
+            greedy_ratio=GA_BEST_GREEDY_RATIO,
+            record_history=False,
+            seed=None         # different random seed each run
+        )
+        ga_scores.append(best_score)
+        print(f"GA run {run:2d}: best score = {best_score:.2f}")
+
+    ga_best = min(ga_scores)
+    ga_worst = max(ga_scores)
+    ga_mean = stats.mean(ga_scores)
+    ga_var  = stats.pvariance(ga_scores)
+    ga_std  = stats.pstdev(ga_scores)
+
+    print("\nGA (10 runs) statistics:")
+    print("Scores:", [f"{s:.2f}" for s in ga_scores])
+    print(f"Best   : {ga_best:.2f}")
+    print(f"Worst  : {ga_worst:.2f}")
+    print(f"Mean   : {ga_mean:.2f}")
+    print(f"Std dev: {ga_std:.2f}")
+    print(f"Var    : {ga_var:.2f}")
+
+    #Greedy statistics
+    greedy_only_scores = [score for (_, score) in greedy_scores]
+    greedy_sorted = sorted(greedy_only_scores)
+    best_5_greedy = greedy_sorted[:5]
+
+    greedy_mean = stats.mean(greedy_only_scores)
+    greedy_var  = stats.pvariance(greedy_only_scores)
+    greedy_std  = stats.pstdev(greedy_only_scores)
+
+    print("\nGreedy statistics (all starting cities):")
+    print(f"Number of greedy runs: {len(greedy_only_scores)}")
+    print("Best 5 greedy scores:", [f"{s:.2f}" for s in best_5_greedy])
+    print(f"Greedy best   : {min(greedy_only_scores):.2f}")
+    print(f"Greedy worst  : {max(greedy_only_scores):.2f}")
+    print(f"Greedy mean   : {greedy_mean:.2f}")
+    print(f"Greedy std dev: {greedy_std:.2f}")
+    print(f"Greedy var    : {greedy_var:.2f}")
+
+    #Random: 1000 independent tours
+    random_1000_scores = []
+    for i in range(1000):
+        sol = tsp.random_solution()
+        s = tsp.fitness(sol)
+        random_1000_scores.append(s)
+
+    rand_best = min(random_1000_scores)
+    rand_worst = max(random_1000_scores)
+    rand_mean = stats.mean(random_1000_scores)
+    rand_var  = stats.pvariance(random_1000_scores)
+    rand_std  = stats.pstdev(random_1000_scores)
+
+    print("\nRandom (1000 tours) statistics:")
+    print(f"Best   : {rand_best:.2f}")
+    print(f"Worst  : {rand_worst:.2f}")
+    print(f"Mean   : {rand_mean:.2f}")
+    print(f"Std dev: {rand_std:.2f}")
+    print(f"Var    : {rand_var:.2f}")
+
+    #Chart
+    print("\n============== FINAL COMPARISON SUMMARY ==============")
+    print(f"{'Method':<15} {'Best':>12} {'Mean':>12} {'Std dev':>12} {'Var':>12}")
+    print("-" * 65)
+    print(f"{'GA (10 runs)':<15} {ga_best:12.2f} {ga_mean:12.2f} {ga_std:12.2f} {ga_var:12.2f}")
+    print(f"{'Greedy':<15} {min(greedy_only_scores):12.2f} {greedy_mean:12.2f} {greedy_std:12.2f} {greedy_var:12.2f}")
+    print(f"{'Random (1000)':<15} {rand_best:12.2f} {rand_mean:12.2f} {rand_std:12.2f} {rand_var:12.2f}")
